@@ -3,10 +3,10 @@
 /**
  * Modoboa rc-vacation Driver
  *
- * @version 1.0.2
+ * @version 1.0.3
  * @author stephane @actionweb
  *
- * Copyright (C) 2018, The Roundcube Dev Team
+ * Copyright (C) 2019, The Roundcube Dev Team
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -43,11 +43,13 @@ function vacation_read(array &$data)
   $RoudCubeUsername = $_SESSION['username'];
   $IMAPhost = $_SESSION['imap_host'];
 
+  //rcube::write_log('errors', "RoudCubeUsername: " . $RoudCubeUsername);
+
   // Call GET to fetch values from modoboa server
   $curl = curl_init();
 
   curl_setopt_array($curl, array(
-    CURLOPT_URL => "https://" . $IMAPhost . "/api/v1/armessages/?accounts=" . $RoudCubeUsername,
+    CURLOPT_URL => "https://" . $IMAPhost . "/api/v1/armessages/?search=" . $RoudCubeUsername,
     CURLOPT_RETURNTRANSFER => true,
     CURLOPT_ENCODING => "",
     CURLOPT_MAXREDIRS => 10,
@@ -63,6 +65,8 @@ function vacation_read(array &$data)
 
   $response = curl_exec($curl);
 
+  //rcube::write_log('errors', "response first GET: " . $response);
+
   $err = curl_error($curl);
   curl_close($curl);
 
@@ -74,11 +78,9 @@ function vacation_read(array &$data)
   // Decode json string
   $decoded = json_decode($response);
 
-  // Set id
-  $userid = $decoded[0]->id;
-
-  // Set mbox
-  $mbox = $decoded[0]->mbox;
+  // Set mbox id
+  $id = $decoded[0]->id;
+  //rcube::write_log('errors', "id GET: " . $decoded[0]->id);
 
   // Set message
   $data['vacation_subject'] = $decoded[0]->subject;
@@ -91,6 +93,7 @@ function vacation_read(array &$data)
 
   return PLUGIN_SUCCESS;
 }
+
 
 /*
  * Write driver function.
@@ -111,7 +114,7 @@ function vacation_write(array &$data)
   $curl = curl_init();
 
   curl_setopt_array($curl, array(
-    CURLOPT_URL => "https://" . $IMAPhost . "/api/v1/armessages/?accounts=" . $RoudCubeUsername,
+    CURLOPT_URL => "https://" . $IMAPhost . "/api/v1/armessages/?search=" . $RoudCubeUsername,
     CURLOPT_RETURNTRANSFER => true,
     CURLOPT_ENCODING => "",
     CURLOPT_MAXREDIRS => 10,
@@ -139,10 +142,10 @@ function vacation_write(array &$data)
   $decoded = json_decode($response);
 
   // Set id
-  $userid = $decoded[0]->id;
-  rcube::write_log('errors', "userid write: " . $userid);
-  $ret['id'] = $userid;
-  rcube::write_log('errors', "ret id: " . $ret['id']);
+  $id = $decoded[0]->id;
+  //rcube::write_log('errors', "id PUT: " . $id);
+  $ret['id'] = $id;
+  //rcube::write_log('errors', "ret id: " . $ret['id']);
 
   // Set message
   $ret['subject'] = $data['vacation_subject'];
@@ -165,7 +168,9 @@ function vacation_write(array &$data)
 
   // Set mbox
   $mbox = $decoded[0]->mbox;
+  //rcube::write_log('errors', "mbox write: " . $mbox);
   $ret['mbox'] = $mbox;
+  //rcube::write_log('errors', "ret mbox: " . $ret['mbox']);
 
   // Encode json
   $encoded = json_encode($ret);
@@ -174,7 +179,7 @@ function vacation_write(array &$data)
   $curl = curl_init();
 
   curl_setopt_array($curl, array(
-    CURLOPT_URL => "https://" . $IMAPhost . "/api/v1/armessages/" . $userid . "/?mbox=" . $mbox,
+    CURLOPT_URL => "https://" . $IMAPhost . "/api/v1/armessages/" . $id . "/?mbox=" . $mbox,
     CURLOPT_RETURNTRANSFER => true,
     CURLOPT_ENCODING => "",
     CURLOPT_MAXREDIRS => 10,
@@ -189,7 +194,13 @@ function vacation_write(array &$data)
     ),
   ));
 
+  //$info = curl_getinfo($curl);
+  //rcube::write_log('errors', "curl write: " . print_r($info));
+
   $response = curl_exec($curl);
+
+  //rcube::write_log('errors', "reponse write PUT: " . $response);
+
   $err = curl_error($curl);
 
   curl_close($curl);
@@ -199,5 +210,5 @@ function vacation_write(array &$data)
     rcube::write_log('errors', "Modoboa cURL Error #: " . $err);
   }
 
-	return PLUGIN_SUCCESS;
+    return PLUGIN_SUCCESS;
 }
